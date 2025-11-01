@@ -1367,6 +1367,8 @@ dependencies = [
  "serde_yml",
  "thiserror",
  "tokio",
+ "tower",
+ "tower-http",
  "tracing",
  "tracing-error",
  "tracing-subscriber",
@@ -1568,9 +1570,11 @@ dependencies = [
  "http-body",
  "iri-string",
  "pin-project-lite",
+ "tokio",
  "tower",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]

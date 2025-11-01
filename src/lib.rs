@@ -1,7 +1,9 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
-use axum::{Router, routing::get};
+use axum::{Router, extract::Request, routing::get};
 use tokio::{net::TcpListener, sync::broadcast, task::JoinHandle};
+use tower::ServiceBuilder;
+use tower_http::{cors::CorsLayer, normalize_path::NormalizePathLayer, timeout::TimeoutLayer, trace::TraceLayer};
 
 pub mod config;
 mod routes {
@@ -32,8 +34,15 @@ impl Service {
         let config = self.config.clone();
 
         let server_handle = tokio::spawn(async move {
-            let server =
-                axum::serve(listener, create_http_router(config)).with_graceful_shutdown(shutdown_signal(shutdown_rx));
+            let router = create_http_router(config);
+
+            let router_with_middleware = ServiceBuilder::new()
+                .layer(NormalizePathLayer::trim_trailing_slash())
+                .service(router);
+
+            let service = axum::ServiceExt::<Request>::into_make_service(router_with_middleware);
+
+            let server = axum::serve(listener, service).with_graceful_shutdown(shutdown_signal(shutdown_rx));
 
             match server.await {
                 Ok(_) => Ok(()),
@@ -55,6 +64,9 @@ fn create_http_router(config: Arc<ServiceConfig>) -> Router {
     Router::new()
         .route("/health", get(routes::health::check))
         .nest("/api", routes::api::routes())
+        .layer(TraceLayer::new_for_http())
+        .layer(CorsLayer::permissive())
+        .layer(TimeoutLayer::new(Duration::from_secs(30)))
         .with_state(service_state.into())
 }
 
