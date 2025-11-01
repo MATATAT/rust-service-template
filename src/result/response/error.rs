@@ -13,15 +13,17 @@ where
 
 #[derive(Debug, thiserror::Error)]
 #[error(transparent)]
-pub(crate) enum ResponseErrorKind {}
+pub(crate) enum ResponseErrorKind {
+    Validator(#[from] validator::ValidationErrors),
+}
 
 impl IntoResponse for ResponseError {
     fn into_response(self) -> axum::response::Response {
-        // For now, we return a generic 500 Internal Server Error for all response errors.
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Internal Server Error: {:?}", self.0),
-        )
-            .into_response()
+        match *self.0 {
+            ResponseErrorKind::Validator(validation_errors) => {
+                let body = format!("Validation Error: {}", validation_errors);
+                (StatusCode::BAD_REQUEST, body).into_response()
+            }
+        }
     }
 }
