@@ -1,23 +1,27 @@
+use std::sync::Arc;
+
 use axum::{Router, routing::get};
 use tokio::{net::TcpListener, sync::broadcast, task::JoinHandle};
 
 pub mod config;
 mod routes {
+    pub mod api;
     pub mod health;
 }
-pub mod result {
-    pub type ServiceResult<T> = anyhow::Result<T>;
-}
+pub mod result;
+pub(crate) mod service_state;
 
-use crate::{config::ServiceConfig, result::ServiceResult};
+use crate::{config::ServiceConfig, result::ServiceResult, service_state::ServiceState};
 
 pub struct Service {
-    config: ServiceConfig,
+    config: Arc<ServiceConfig>,
 }
 
 impl Service {
     pub fn new(config: ServiceConfig) -> Self {
-        Self { config }
+        Self {
+            config: Arc::new(config),
+        }
     }
 
     pub fn start_server(
@@ -25,7 +29,7 @@ impl Service {
         listener: TcpListener,
     ) -> ServiceResult<(JoinHandle<ServiceResult<()>>, broadcast::Sender<()>)> {
         let (shutdown_tx, shutdown_rx) = broadcast::channel(1);
-        // let config = self.config.clone();
+        let config = self.config.clone();
 
         let server_handle = tokio::spawn(async move {
             let server =
@@ -45,8 +49,13 @@ impl Service {
     }
 }
 
-fn create_http_router(_config: ServiceConfig) -> Router {
-    Router::new().route("/health", get(routes::health::check))
+fn create_http_router(config: Arc<ServiceConfig>) -> Router {
+    let service_state: ServiceState = config.into();
+
+    Router::new()
+        .route("/health", get(routes::health::check))
+        .nest("/api", routes::api::routes())
+        .with_state(service_state.into())
 }
 
 async fn shutdown_signal(mut shutdown_rx: broadcast::Receiver<()>) {

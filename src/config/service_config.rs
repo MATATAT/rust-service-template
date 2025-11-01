@@ -5,11 +5,19 @@ use validator::Validate;
 #[derive(Debug)]
 pub struct ServiceConfigWrapper(pub ServiceConfig);
 
-#[derive(Debug, Default, Validate, Deserialize)]
+#[derive(Debug, Validate, Deserialize)]
 pub struct ServiceConfig {
     #[serde(rename = "hello-name", default = "default_hello_name")]
     #[validate(length(min = 2, max = 100))]
     pub hello_name: String,
+}
+
+impl Default for ServiceConfig {
+    fn default() -> Self {
+        Self {
+            hello_name: default_hello_name(),
+        }
+    }
 }
 
 impl<'de> Deserialize<'de> for ServiceConfigWrapper {
@@ -40,40 +48,51 @@ mod tests {
     #[test]
     fn test_deserialize_service_config() {
         let yaml_data = r#"
-  svc:
+svc:
+  svc-template:
     hello-name: "World"
         "#;
 
         let config: ServiceConfigWrapper = serde_yml::from_str(yaml_data).unwrap();
+
         assert_eq!(config.0.hello_name, "World");
     }
 
     #[test]
     fn test_deserialize_service_config_with_default() {
         let yaml_data = r#"
-  svc: {}
+svc:
+  svc-template: {}
         "#;
 
         let config: ServiceConfigWrapper = serde_yml::from_str(yaml_data).unwrap();
+
         assert_eq!(config.0.hello_name, "World");
     }
 
     #[test]
     fn test_deserialize_service_config_missing_svc() {
         let yaml_data = r#"
-  other:
-    hello-name: "World"
+other:
+  hello-name: "World"
         "#;
 
-        let config: ServiceConfigWrapper = serde_yml::from_str(yaml_data).unwrap();
-        assert_eq!(config.0.hello_name, "World");
+        let result = serde_yml::from_str::<ServiceConfigWrapper>(yaml_data);
+        assert!(result.is_err());
     }
 
     #[test]
     fn test_deserialize_service_config_empty() {
         let yaml_data = r#""#;
 
-        let config: ServiceConfigWrapper = serde_yml::from_str(yaml_data).unwrap();
-        assert_eq!(config.0.hello_name, "World");
+        let result = serde_yml::from_str::<ServiceConfigWrapper>(yaml_data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_default_service_config() {
+        let config = ServiceConfig::default();
+
+        assert_eq!(config.hello_name, "World");
     }
 }

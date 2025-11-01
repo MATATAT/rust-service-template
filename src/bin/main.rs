@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::anyhow;
 use clap::{Parser, Subcommand};
-use rate_limited_svc::{Service, config::ServiceConfig};
+use svc_template::{Service, config::ServiceConfig};
 use tokio::{net::TcpListener, signal::unix::SignalKind, time::timeout, try_join};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{EnvFilter, filter::Directive, layer::SubscriberExt, util::SubscriberInitExt};
@@ -39,7 +39,7 @@ async fn run_service() -> Result<(), anyhow::Error> {
         tracing_level = LevelFilter::DEBUG;
     }
 
-    let default_directive: Directive = format!("{{project_name}}={}", tracing_level).parse()?;
+    let default_directive: Directive = format!("svc_template={}", tracing_level).parse()?;
 
     tracing_subscriber::registry()
         .with(
