@@ -29,27 +29,16 @@ async fn get_hello_handler(State(service_state): State<SharedServiceState>) -> R
 }
 
 #[axum::debug_handler]
-async fn get_hello_name_handler(
-    State(service_state): State<SharedServiceState>,
-    Path(name): Path<String>,
-) -> ResponseResult {
-    Ok(Response::Text(format!(
-        "Hello, {}! (from {})",
-        name,
-        service_state.response_name()
-    )))
+async fn get_hello_name_handler(Path(name): Path<String>) -> ResponseResult {
+    let wrapped_name = HelloRequest { name };
+    wrapped_name.validate()?;
+
+    Ok(Response::Text(format!("Hello, {}!", wrapped_name.name)))
 }
 
 #[axum::debug_handler]
-async fn post_hello_handler(
-    State(service_state): State<SharedServiceState>,
-    Json(payload): Json<HelloRequest>,
-) -> ResponseResult {
+async fn post_hello_handler(Json(payload): Json<HelloRequest>) -> ResponseResult {
     payload.validate()?;
 
-    Ok(Response::Text(format!(
-        "Hello, {}! (from {})",
-        payload.name,
-        service_state.response_name()
-    )))
+    Ok(Response::Text(format!("Hello, {}!", payload.name)))
 }

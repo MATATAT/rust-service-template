@@ -1,4 +1,5 @@
-use axum::{http::StatusCode, response::IntoResponse};
+use axum::{Json, http::StatusCode, response::IntoResponse};
+use serde_json::json;
 
 pub struct ResponseError(Box<ResponseErrorKind>);
 
@@ -21,8 +22,12 @@ impl IntoResponse for ResponseError {
     fn into_response(self) -> axum::response::Response {
         match *self.0 {
             ResponseErrorKind::Validator(validation_errors) => {
-                let body = format!("Validation Error: {}", validation_errors);
-                (StatusCode::BAD_REQUEST, body).into_response()
+                let body = json!({
+                    "error": "validation_error",
+                    "details": validation_errors,
+                });
+
+                (StatusCode::BAD_REQUEST, Json(body)).into_response()
             }
         }
     }
